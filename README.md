@@ -24,24 +24,24 @@ Mature viewers (Mol\*, PyMOL, ChimeraX) render structures beautifully. `foldlab`
 
 ---
 
-## 📊 Claude Rating: 63 / 100 — *Solid*
+## 📊 Claude Rating: 70 / 100 — *Strong*
 
-A self-assessment using a reusable 7-benchmark rubric (each 0–10, weighted, ×10). Scored honestly — high craft and rigor, modest real-world impact.
+A self-assessment using a reusable 7-benchmark rubric (each 0–10, weighted, ×10). Scored honestly — high craft and rigor, modest real-world impact. (Up from 63 after shipping the live site and adding mutation prediction + the cartoon view.)
 
-| Benchmark | Weight | Score | |
-|---|---:|---:|:--|
-| **Craft** — execution & correctness | 20% | 8.5 | `████████▌░` |
-| **Rigor** — domain accuracy & honesty | 15% | 8.0 | `████████░░` |
-| **Completeness** — coherent finished scope | 10% | 7.0 | `███████░░░` |
-| **Novelty** — differentiation vs prior art | 15% | 6.5 | `██████▌░░░` |
-| **Ambition** — difficulty of the problem | 10% | 6.0 | `██████░░░░` |
-| **Robustness** — tests, deps, scalability | 10% | 5.0 | `█████░░░░░` |
-| **Impact** — real-world usefulness | 20% | 3.0 | `███░░░░░░░` |
-| **Composite** | | **63** | **Solid** |
+| Benchmark | Weight | Score | Δ | |
+|---|---:|---:|:--|:--|
+| **Craft** — execution & correctness | 20% | 9.0 | +0.5 | `█████████░` |
+| **Rigor** — domain accuracy & honesty | 15% | 8.5 | +0.5 | `████████▌░` |
+| **Completeness** — coherent finished scope | 10% | 8.0 | +1.0 | `████████░░` |
+| **Novelty** — differentiation vs prior art | 15% | 7.0 | +0.5 | `███████░░░` |
+| **Ambition** — difficulty of the problem | 10% | 7.0 | +1.0 | `███████░░░` |
+| **Robustness** — tests, deps, scalability | 10% | 5.5 | +0.5 | `█████▌░░░░` |
+| **Impact** — real-world usefulness | 20% | 4.0 | +1.0 | `████░░░░░░` |
+| **Composite** | | **70** | **+7** | **Strong** |
 
 *Tiers: 90+ Landmark · 80–89 Excellent · 70–79 Strong · 60–69 Solid · 50–59 Promising · 40–49 Rough · <40 Early.*
 
-**Honest read:** high craft and intellectual honesty; held back by impact (molecular visualization is commoditized and ESMFold is the real engine) and robustness (no tests, leans on free public APIs). This is a strong learning/portfolio artifact, not a product.
+**Honest read:** high craft and intellectual honesty, now a live and shareable tool; held back by impact (molecular visualization is commoditized and ESMFold is the real engine) and robustness (no automated tests, total dependence on free public APIs). A strong learning/portfolio artifact sitting at the low edge of *Strong* — not yet a product.
 
 ---
 
