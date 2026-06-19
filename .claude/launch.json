@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8000"],
       "port": 8000
+    },
+    {
+      "name": "meccha-camo",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5050", "--directory", "meccha-chameleon"],
+      "port": 5050
     }
   ]
 }

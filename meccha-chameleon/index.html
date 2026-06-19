@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Meccha Camo — browser multiplayer hide &amp; seek</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1f2630; --line:#2b3340;
+    --txt:#e6edf3; --muted:#8b97a6; --accent:#4ade80; --accent2:#38bdf8;
+    --danger:#f87171; --warn:#fbbf24;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
+    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel2);
+    color:var(--txt);padding:8px 14px;border-radius:9px}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#06210f;border-color:var(--accent);font-weight:700}
+  button.primary:hover{filter:brightness(1.08)}
+  input,select{font:inherit;background:var(--panel2);color:var(--txt);
+    border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .hidden{display:none !important}
+
+  /* ---- menu ---- */
+  #menu{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(1200px 600px at 50% -10%,#15324a 0%,var(--bg) 60%);z-index:30}
+  .card{width:min(540px,92vw);background:var(--panel);border:1px solid var(--line);
+    border-radius:18px;padding:26px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  .title{font-size:30px;font-weight:800;letter-spacing:.5px;margin:0 0 2px}
+  .title .dot{color:var(--accent)}
+  .sub{color:var(--muted);margin:0 0 20px;font-size:14px;line-height:1.5}
+  .row{display:flex;gap:10px;align-items:center;margin:10px 0}
+  .row label{width:96px;color:var(--muted);font-size:13px}
+  .row input,.row select{flex:1}
+  .split{display:flex;gap:14px;margin-top:18px}
+  .split>div{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .split h3{margin:0 0 8px;font-size:15px}
+  .tiny{color:var(--muted);font-size:12px;line-height:1.5}
+  #status{margin-top:14px;min-height:18px;font-size:13px;color:var(--warn)}
+
+  /* ---- game ---- */
+  #game{position:absolute;inset:0;display:block}
+  #hud{position:absolute;inset:0;pointer-events:none;z-index:10;
+    font-size:13px;display:flex;flex-direction:column;justify-content:space-between}
+  .hud-top{display:flex;justify-content:space-between;align-items:flex-start;padding:12px}
+  .badge{pointer-events:auto;background:rgba(13,17,23,.78);border:1px solid var(--line);
+    border-radius:10px;padding:8px 12px;backdrop-filter:blur(6px)}
+  #timer{font-size:26px;font-weight:800;text-align:center;min-width:74px}
+  #phaseLbl{color:var(--muted);font-size:11px;text-align:center;text-transform:uppercase;letter-spacing:1px}
+  #roleTag{font-weight:800}
+  #scoreboard{max-width:230px}
+  #scoreboard .sb-row{display:flex;justify-content:space-between;gap:10px;padding:1px 0}
+  #scoreboard .me{color:var(--accent)}
+
+  .hud-bottom{padding:12px;display:flex;justify-content:center}
+  #toolbar{pointer-events:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    background:rgba(13,17,23,.82);border:1px solid var(--line);border-radius:14px;padding:10px 12px;
+    backdrop-filter:blur(6px)}
+  #toolbar .group{display:flex;gap:6px;align-items:center;border-right:1px solid var(--line);padding-right:10px}
+  #toolbar .group:last-child{border-right:none;padding-right:0}
+  .swatch{width:26px;height:26px;border-radius:7px;border:2px solid #0006;cursor:pointer}
+  .swatch.sel{outline:2px solid var(--txt)}
+  .pbtn{padding:6px 10px;border-radius:8px}
+  .pbtn.sel{background:var(--accent2);color:#04222e;border-color:var(--accent2);font-weight:700}
+  #blendWrap{display:flex;align-items:center;gap:8px}
+  #blendBar{width:90px;height:10px;border-radius:6px;background:#0006;overflow:hidden;border:1px solid var(--line)}
+  #blendFill{height:100%;width:0;background:var(--accent);transition:width .12s,background .12s}
+
+  #centerMsg{position:absolute;top:46%;left:0;right:0;text-align:center;pointer-events:none}
+  #centerMsg .big{display:inline-block;background:rgba(13,17,23,.85);border:1px solid var(--line);
+    padding:14px 26px;border-radius:14px;font-size:22px;font-weight:800}
+  #hint{position:absolute;bottom:86px;left:0;right:0;text-align:center;color:var(--muted);font-size:12px}
+  #hostCtl{position:absolute;top:12px;left:50%;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+  <!-- ============ MENU ============ -->
+  <div id="menu">
+    <div class="card">
+      <h1 class="title">MECCHA&nbsp;CAMO<span class="dot">.</span></h1>
+      <p class="sub">A browser-multiplayer hide &amp; seek where hiders <b>paint themselves to
+        blend into the room</b> and posers freeze still, while a hunter races the clock to spot them.
+        Peer-to-peer over WebRTC (PeerJS) — no game server, the host runs the match.</p>
+
+      <div class="row"><label>Your name</label><input id="nameIn" maxlength="14" placeholder="blobby" /></div>
+
+      <div class="split">
+        <div>
+          <h3>Host a room</h3>
+          <div class="row"><label>Mode</label>
+            <select id="modeIn">
+              <option value="standard">Standard (1 hunter)</option>
+              <option value="infection">Infection (caught = hunter)</option>
+              <option value="double">Double (all hide → all hunt)</option>
+            </select>
+          </div>
+          <button class="primary" id="hostBtn" style="width:100%">Create room</button>
+          <p class="tiny" style="margin-top:8px">You get a 4-letter code to share.</p>
+        </div>
+        <div>
+          <h3>Join a room</h3>
+          <div class="row"><label>Code</label><input id="codeIn" maxlength="4"
+            style="text-transform:uppercase" placeholder="ABCD" /></div>
+          <button id="joinBtn" style="width:100%">Join</button>
+          <p class="tiny" style="margin-top:8px">Ask the host for their code.</p>
+        </div>
+      </div>
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <!-- ============ GAME ============ -->
+  <canvas id="game"></canvas>
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="badge" id="scoreboard"></div>
+      <div class="badge">
+        <div id="phaseLbl">lobby</div>
+        <div id="timer">--</div>
+      </div>
+      <div class="badge"><span id="roleTag">—</span><div class="tiny" id="roomTag"></div></div>
+    </div>
+
+    <div id="centerMsg" class="hidden"><span class="big"></span></div>
+    <div id="hint"></div>
+
+    <div class="hud-bottom">
+      <div id="toolbar">
+        <div class="group" id="paletteGroup" title="Paint your blob"></div>
+        <div class="group" id="poseGroup" title="Pose (freeze still to blend)">
+          <button class="pbtn sel" data-pose="stand">Stand</button>
+          <button class="pbtn" data-pose="curl">Curl</button>
+          <button class="pbtn" data-pose="lie">Lie</button>
+        </div>
+        <div class="group">
+          <button class="pbtn" id="eyedrop" title="Sample the floor color under you">Eyedropper</button>
+          <button class="pbtn" id="tauntBtn" title="Whistle (gives away position!)">Taunt</button>
+        </div>
+        <div class="group" id="blendWrap" title="How well you match what's under you">
+          <span class="tiny">Blend</span><div id="blendBar"><div id="blendFill"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="primary hidden" id="hostCtl">Start match</button>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
