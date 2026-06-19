@@ -194,6 +194,170 @@ function buildBackbone(atoms) {
   return drew;
 }
 
+// ---------------------------------------------------------------------------
+// Cartoon / ribbon representation
+// Secondary structure is computed from backbone phi/psi (works for predicted
+// structures too, which lack HELIX/SHEET records).
+// ---------------------------------------------------------------------------
+const SS_COLORS = { H: 0xff4d6d, E: 0xffd23f, C: 0x49c5b6 };
+
+function dihedral(p0, p1, p2, p3) {
+  const b0 = new THREE.Vector3().subVectors(p0, p1);
+  const b1 = new THREE.Vector3().subVectors(p2, p1).normalize();
+  const b2 = new THREE.Vector3().subVectors(p3, p2);
+  const v = b0.clone().sub(b1.clone().multiplyScalar(b0.dot(b1)));
+  const w = b2.clone().sub(b1.clone().multiplyScalar(b2.dot(b1)));
+  const x = v.dot(w);
+  const y = new THREE.Vector3().crossVectors(b1, v).dot(w);
+  return Math.atan2(y, x) * 180 / Math.PI;
+}
+
+// group protein backbone atoms into ordered per-chain residue lists
+function collectChains(atoms) {
+  const map = new Map();
+  for (const a of atoms) {
+    if (a.hetatm || !AA1[a.resName]) continue;
+    if (a.name !== 'N' && a.name !== 'CA' && a.name !== 'C' && a.name !== 'O') continue;
+    if (!map.has(a.chain)) map.set(a.chain, new Map());
+    const cm = map.get(a.chain);
+    if (!cm.has(a.resSeq)) cm.set(a.resSeq, { resSeq: a.resSeq });
+    const r = cm.get(a.resSeq);
+    if (a.name === 'N') r.n = a.pos;
+    else if (a.name === 'CA') { r.ca = a.pos; r.caAtom = a; r.plddt = a.bf; }
+    else if (a.name === 'C') r.c = a.pos;
+    else if (a.name === 'O') r.o = a.pos;
+  }
+  const chains = [];
+  for (const cm of map.values()) {
+    const list = [...cm.values()].filter(r => r.ca).sort((p, q) => p.resSeq - q.resSeq);
+    if (list.length) chains.push(list);
+  }
+  return chains;
+}
+
+function enforceRun(list, type, minLen) {
+  let i = 0;
+  while (i < list.length) {
+    if (list[i].ss === type) {
+      let j = i; while (j < list.length && list[j].ss === type) j++;
+      if (j - i < minLen) for (let k = i; k < j; k++) list[k].ss = 'C';
+      i = j;
+    } else i++;
+  }
+}
+
+function assignSS(list) {
+  const n = list.length;
+  for (let i = 0; i < n; i++) {
+    list[i].ss = 'C';
+    const r = list[i], pr = list[i - 1], nx = list[i + 1];
+    if (i > 0 && i < n - 1 && r.n && r.c && pr.c && nx.n &&
+        r.resSeq === pr.resSeq + 1 && nx.resSeq === r.resSeq + 1) {
+      const phi = dihedral(pr.c, r.n, r.ca, r.c);
+      const psi = dihedral(r.n, r.ca, r.c, nx.n);
+      if (phi >= -120 && phi <= -30 && psi >= -80 && psi <= 0) list[i].ss = 'H';
+      else if (phi >= -180 && phi <= -50 && psi >= 80 && psi <= 180) list[i].ss = 'E';
+    }
+  }
+  enforceRun(list, 'H', 4);
+  enforceRun(list, 'E', 3);
+}
+
+// extrude a variable-width ribbon (rectangular cross-section) along a Cα spline
+function buildRibbon(res) {
+  const n = res.length;
+  if (n < 2) return null;
+  const conf = colorMode === 'confidence';
+
+  // per-residue flat-face direction from the carbonyl, with flip correction
+  const sides = [];
+  let prev = null;
+  for (let i = 0; i < n; i++) {
+    const a = res[Math.max(0, i - 1)].ca, b = res[Math.min(n - 1, i + 1)].ca;
+    const tan = new THREE.Vector3().subVectors(b, a).normalize();
+    let side;
+    if (res[i].o) side = new THREE.Vector3().crossVectors(tan, new THREE.Vector3().subVectors(res[i].o, res[i].ca)).normalize();
+    else { side = new THREE.Vector3(0, 1, 0).cross(tan); if (side.lengthSq() < 1e-4) side.set(1, 0, 0); side.normalize(); }
+    if (prev && side.dot(prev) < 0) side.multiplyScalar(-1);
+    sides.push(side); prev = side;
+  }
+
+  // per-residue cross-section size by secondary structure
+  const W = res.map(r => r.ss === 'H' ? 2.2 : r.ss === 'E' ? 2.0 : 0.6);
+  const T = res.map(r => r.ss === 'C' ? 0.6 : 0.45);
+  // sheet arrowheads: widen then taper to a point at each strand's C-terminal end
+  let i = 0;
+  while (i < n) {
+    if (res[i].ss === 'E') {
+      let j = i; while (j < n && res[j].ss === 'E') j++;
+      W[j - 1] = 0.2; if (j - 2 >= i) W[j - 2] = 3.0;
+      i = j;
+    } else i++;
+  }
+  const cols = res.map(r => conf ? confColor(r.plddt * bScale) : new THREE.Color(SS_COLORS[r.ss]));
+
+  const curve = new THREE.CatmullRomCurve3(res.map(r => r.ca.clone()), false, 'centripetal');
+  const samples = (n - 1) * 10 + 1;
+  const pos = [], col = [], idx = [];
+  const P = new THREE.Vector3(), tan = new THREE.Vector3();
+
+  for (let s = 0; s < samples; s++) {
+    const u = s / (samples - 1);
+    const f = u * (n - 1), i0 = Math.min(n - 1, Math.floor(f)), i1 = Math.min(n - 1, i0 + 1), fr = f - i0;
+    curve.getPoint(u, P);
+    curve.getTangent(u, tan).normalize();
+    const side = sides[i0].clone().lerp(sides[i1], fr);
+    side.sub(tan.clone().multiplyScalar(side.dot(tan))).normalize(); // re-orthogonalize
+    const nrm = new THREE.Vector3().crossVectors(tan, side).normalize();
+    const hw = (W[i0] + (W[i1] - W[i0]) * fr) / 2;
+    const ht = (T[i0] + (T[i1] - T[i0]) * fr) / 2;
+    const c = cols[i0].clone().lerp(cols[i1], fr);
+    const sw = side.clone().multiplyScalar(hw), nt = nrm.clone().multiplyScalar(ht);
+    const corners = [
+      P.clone().add(sw).add(nt), P.clone().add(sw).sub(nt),
+      P.clone().sub(sw).sub(nt), P.clone().sub(sw).add(nt),
+    ];
+    for (const v of corners) { pos.push(v.x, v.y, v.z); col.push(c.r, c.g, c.b); }
+    if (s > 0) {
+      const r0 = (s - 1) * 4, r1 = s * 4;
+      for (let k = 0; k < 4; k++) {
+        const k2 = (k + 1) % 4;
+        idx.push(r0 + k, r0 + k2, r1 + k2, r0 + k, r1 + k2, r1 + k);
+      }
+    }
+  }
+  // end caps
+  const last = (samples - 1) * 4;
+  idx.push(0, 1, 2, 0, 2, 3, last, last + 2, last + 1, last, last + 3, last + 2);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.05 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.userData.caAtoms = res.map(r => r.caAtom);
+  return mesh;
+}
+
+function buildCartoon(atoms) {
+  let drew = false;
+  for (const list of collectChains(atoms)) {
+    assignSS(list);
+    let seg = [list[0]];
+    const flush = () => { if (seg.length >= 2) { const m = buildRibbon(seg); if (m) { molecule.add(m); drew = true; } } };
+    for (let k = 1; k < list.length; k++) {
+      const prev = list[k - 1], cur = list[k];
+      if (cur.resSeq !== prev.resSeq + 1 || prev.ca.distanceTo(cur.ca) > 4.6) { flush(); seg = [cur]; }
+      else seg.push(cur);
+    }
+    flush();
+  }
+  return drew;
+}
+
 // ground plane + grid sized to the molecule, placed just below it
 function buildGround(radius) {
   clearGroup(ground);
@@ -345,7 +509,12 @@ function renderMolecule() {
   clearGroup(molecule);
   if (!currentAtoms.length) return;
   if (currentRep === 'spacefill') buildSpacefill(currentAtoms);
-  else if (!buildBackbone(currentAtoms)) {
+  else if (currentRep === 'cartoon') {
+    if (!buildCartoon(currentAtoms)) {
+      setStatus('No protein backbone for cartoon — showing spacefill.', true);
+      buildSpacefill(currentAtoms);
+    }
+  } else if (!buildBackbone(currentAtoms)) {
     setStatus('No Cα backbone — showing spacefill.', true);
     buildSpacefill(currentAtoms);
   }

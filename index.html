@@ -31,6 +31,7 @@
     }
     button:hover { filter: brightness(1.12); }
     button.toggle { background: #232733; flex: 1; }
+    .row button.toggle[data-rep] { font-size: 12px; padding: 6px 4px; }
     button.toggle.active { background: #3b82f6; }
     .examples { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
     .examples button { background: #232733; padding: 4px 8px; font-size: 11px; }
@@ -153,6 +154,7 @@
     <div class="row">
       <button class="toggle active" data-rep="spacefill">Spacefill</button>
       <button class="toggle" data-rep="backbone">Backbone</button>
+      <button class="toggle" data-rep="cartoon">Cartoon</button>
     </div>
     <button id="colorBtn" class="toggle">🎨 Color: element</button>
     <button id="scaleBtn" class="toggle">🔬 Compare to cell scale</button>

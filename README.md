@@ -11,7 +11,8 @@ Mature viewers (Mol\*, PyMOL, ChimeraX) render structures beautifully. `foldlab`
 ## Features
 
 - **Load any PDB structure** live from the RCSB Protein Data Bank by 4-character ID.
-- **Two representations** — CPK space-filling spheres (`InstancedMesh`, smooth even for ~5,000-atom hemoglobin) and a rainbow α-carbon backbone trace.
+- **Three representations** — CPK space-filling spheres (`InstancedMesh`, smooth even for ~5,000-atom hemoglobin), a rainbow α-carbon backbone trace, and a **cartoon/ribbon** view with helix ribbons and β-sheet arrows.
+- **Secondary structure from geometry** — helices and sheets are assigned from backbone φ/ψ dihedrals (verified against ubiquitin's known fold), so the cartoon works for *predicted* structures too, which carry no `HELIX`/`SHEET` records.
 - **Glossy rendering** — `MeshStandardMaterial` with a procedural environment map for reflections, ACES tone mapping, and a soft-shadowed ground plane.
 - **Click any atom to identify** its residue, chain, and (for predictions) pLDDT confidence.
 - **About panel** — title, method, resolution, mass, source organism, and primary citation, pulled live from the RCSB data API.
