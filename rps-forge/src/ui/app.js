@@ -30,7 +30,7 @@ const hudEl = document.getElementById("hud");
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let screen = "setup";          // 'setup' | 'waiting'
-let setup = { mode: "local", count: 2, pub: "host", joinCode: "" };
+let setup = { mode: "local", count: 2, pub: "host", joinCode: "", pubSize: 2 };
 let role = "local";
 let lobby = null;
 let net = null;
@@ -38,6 +38,7 @@ let mySeat = 0;
 let g = null;
 let netError = "";
 let lastFxKey = null; // dedupes battle VFX per melee reveal
+let meleeAnnounced = false; // ensures the blessed/cursed toast fires once per game
 let matchSearching = false;
 
 const makeCode = () => Array.from({ length: 4 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 31)]).join("");
@@ -72,8 +73,13 @@ function setupView() {
         : `<div class="lobby-row"><span class="lbl">Code</span><input class="code-input" data-code value="${setup.joinCode}" placeholder="ABCD" maxlength="4" /></div>
            <button class="big start" data-act="client-join">Join lobby ▸</button>`}`;
   } else {
-    panel = `<button class="big start" data-act="find-match">⚔ Find a match (1v1) ▸</button>
-      <p class="muted small">Quick-match against the next player who's looking. Rooms fill two at a time.</p>`;
+    panel = `
+      <div class="lobby-row"><span class="lbl">Match</span>
+        <button class="seg ${setup.pubSize === 2 ? "sel" : ""}" data-psize="2">1v1</button>
+        <button class="seg ${setup.pubSize === 4 ? "sel" : ""}" data-psize="4">4 players</button>
+      </div>
+      <button class="big start" data-act="find-match">⚔ Find a ${setup.pubSize === 4 ? "4-player" : "1v1"} match ▸</button>
+      <p class="muted small">Quick-match against the next players looking. Rooms fill ${setup.pubSize} at a time, then everyone readies up.</p>`;
   }
   return `
     <div class="lobby">
@@ -163,13 +169,18 @@ function render() {
     if (g.phase === "melee") {
       tableEl.innerHTML = `<div class="duel-banner">🏰 To the melee! 🏰<br><span>Read your rivals. Last one standing wins.</span></div>`;
       hudEl.innerHTML = meleeView(g);
+      // announce blessings/curses to every player, once per game
+      if (!meleeAnnounced) {
+        meleeAnnounced = true;
+        const fate = g.lastEvent && g.lastEvent.trim();
+        vfx.toast(fate || "⚔️ The melee begins — no blessings or curses this round.");
+      }
       // fire battle VFX once per new reveal (visible to everyone)
       const m = g.melee;
       const key = m.reveal ? `${m.reveal.round}:${m.reveal.final ? "F" : "R"}` : null;
       if (key && key !== lastFxKey) {
         lastFxKey = key;
-        const reveal = m.reveal, winnerIdx = m.winnerIdx;
-        requestAnimationFrame(() => vfx.battleVfx(reveal, winnerIdx));
+        vfx.battleVfx(m.reveal, m.winnerIdx);
       }
     } else {
       tableEl.innerHTML = spreadView(g);
@@ -203,7 +214,7 @@ function hostHandleAction(seat, action) {
   if (!g) return;
   if (action.type === "meleenext" || action.type === "new") { if (seat !== mySeat) return; }
   else if (activeSeat(g) !== seat) return;
-  if (action.type === "new") g = createGame(lobby.seats.map((s) => s.name));
+  if (action.type === "new") { g = createGame(lobby.seats.map((s) => s.name)); lastFxKey = null; meleeAnnounced = false; }
   else applyAction(action);
   broadcastViews();
   render();
@@ -221,7 +232,7 @@ function localAction(action) {
 
   if (role === "client") { net.send({ t: "action", action }); return; }
   if (role === "host") { hostHandleAction(mySeat, action); return; }
-  if (action.type === "new") { g = null; screen = "setup"; lobby = null; lastFxKey = null; }
+  if (action.type === "new") { g = null; screen = "setup"; lobby = null; lastFxKey = null; meleeAnnounced = false; }
   else applyAction(action);
   render();
 }
@@ -321,19 +332,21 @@ async function clientJoin() {
 
 // Matchmaking: cascade through deterministic rooms — host the first free one,
 // else join it; if it's full, move to the next. Forms 1v1 rooms two at a time.
-async function findMatch() {
+async function findMatch(size = 2) {
   netError = ""; matchSearching = true; role = "matching"; lobby = null; g = null; screen = "waiting"; render();
+  // size is baked into the room id so 1v1 and 4-player queues never mix
+  const prefix = `${MM_PREFIX}S${size}-`;
   for (let room = 1; room <= 60 && matchSearching; room++) {
-    const code = MM_PREFIX + room;
+    const code = prefix + room;
     // 1) try to host this room
     try {
       const h = await netHost(code, hostHandlers());
       if (!matchSearching) { h.destroy(); return; }
       net = h; role = "host"; mySeat = 0; matchSearching = false;
-      lobby = { mode: "public", matchmaking: true, code, seats: [
-        { name: "You", joined: true, ready: false, peerId: null },
-        { name: "Player 2", joined: false, ready: false, peerId: null },
-      ] };
+      lobby = {
+        mode: "public", matchmaking: true, code,
+        seats: Array.from({ length: size }, (_, i) => ({ name: i === 0 ? "You" : `Player ${i + 1}`, joined: i === 0, ready: false, peerId: null })),
+      };
       screen = "waiting"; render(); return;
     } catch (e) {
       if (e.type !== "unavailable-id") { netError = "Matchmaking failed: " + (e.message || e.type); resetToSetup(); return; }
@@ -356,7 +369,7 @@ function resetToSetup() { matchSearching = false; role = "local"; screen = "setu
 function startGame() {
   if (!lobby.seats.every((s) => s.joined && s.ready)) return;
   g = createGame(lobby.seats.map((s) => s.name));
-  lastFxKey = null;
+  lastFxKey = null; meleeAnnounced = false;
   if (role !== "client") bumpCount(); // count each game once (host/local; clients are part of the host's game)
   if (role === "host") broadcastViews();
   render();
@@ -365,7 +378,7 @@ function startGame() {
 function leave() {
   matchSearching = false;
   if (net) { try { net.destroy(); } catch {} net = null; }
-  role = "local"; g = null; lobby = null; screen = "setup"; lastFxKey = null; render();
+  role = "local"; g = null; lobby = null; screen = "setup"; lastFxKey = null; meleeAnnounced = false; render();
 }
 
 // ---- events -----------------------------------------------------------------
@@ -418,17 +431,18 @@ document.getElementById("app").addEventListener("input", (e) => {
 });
 
 document.getElementById("app").addEventListener("click", (e) => {
-  const t = e.target.closest("[data-draft],[data-choice],[data-target],[data-throw],[data-act],[data-count],[data-mode],[data-pub],[data-join],[data-ready]");
+  const t = e.target.closest("[data-draft],[data-choice],[data-target],[data-throw],[data-act],[data-count],[data-mode],[data-pub],[data-psize],[data-join],[data-ready]");
   if (!t) return;
   const d = t.dataset;
 
   if (d.count !== undefined) setup.count = Number(d.count);
   else if (d.mode !== undefined) { setup.mode = d.mode; netError = ""; }
   else if (d.pub !== undefined) setup.pub = d.pub;
+  else if (d.psize !== undefined) setup.pubSize = Number(d.psize);
   else if (d.act === "create") { role = "local"; lobby = makeLocalLobby(); screen = "waiting"; }
   else if (d.act === "host-create") { hostCreate(); return; }
   else if (d.act === "client-join") { clientJoin(); return; }
-  else if (d.act === "find-match") { findMatch(); return; }
+  else if (d.act === "find-match") { findMatch(setup.pubSize); return; }
   else if (d.act === "back") { leave(); }
   else if (d.join !== undefined) { if (role === "local") lobby.seats[Number(d.join)].joined = true; }
   else if (d.ready !== undefined) {

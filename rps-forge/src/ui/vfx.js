@@ -80,6 +80,23 @@ export function confetti() {
   }
 }
 
+// Top-of-screen announcement banner (e.g. "💎 Blessed: Alice · ☠ Cursed: Bob").
+export function toast(text, ms = 4400) {
+  if (!text) return;
+  const t = node("vfx-toast");
+  t.textContent = text;
+  layer.appendChild(t);
+  t.animate(
+    [
+      { transform: "translate(-50%,-34px)", opacity: 0 },
+      { transform: "translate(-50%,0)", opacity: 1, offset: 0.12 },
+      { transform: "translate(-50%,0)", opacity: 1, offset: 0.85 },
+      { transform: "translate(-50%,-18px)", opacity: 0 },
+    ],
+    { duration: ms, easing: "ease-out" }
+  ).onfinish = () => t.remove();
+}
+
 // ---- semantic helpers -------------------------------------------------------
 
 const STAT_COLOR = { rock: "#9aa3ad", paper: "#4fb0e8", scissors: "#ff7a59" };
