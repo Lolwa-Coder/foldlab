@@ -157,13 +157,32 @@
            background:#fff; border:2px solid var(--line); border-radius:16px; box-shadow:0 5px 0 #eee2cf; }
   .throw small { font:800 12px/1 var(--body); color:var(--muted); }
   .throw:hover { border-color:var(--coral); box-shadow:0 7px 0 #ffd9cc; transform:translateY(-3px); }
-  .reveal-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:9px; margin:12px 0; }
-  .rcell { border:2px solid; border-radius:14px; padding:9px 5px; text-align:center; font-size:13px; font-weight:700; background:#fff; }
-  .rhand { font-size:34px; margin:4px 0; }
-  .rdmg { color:var(--muted); font-size:12px; }
-  .rdmg.took { color:var(--berry); font-weight:800; }
-  .rhp { font-size:12px; color:#5a5478; }
   .elim { text-align:center; color:var(--berry); font-weight:800; margin:9px 0; }
+  /* arena — the fighting animation */
+  .arena { display:flex; flex-direction:column; align-items:center; gap:18px; padding:12px 4px; }
+  .arena-head { font:600 24px/1.2 var(--display); color:var(--coral-d); text-align:center; }
+  .arena-fighters { display:flex; flex-wrap:wrap; justify-content:center; gap:16px; width:100%; }
+  .afighter { width:124px; display:flex; flex-direction:column; align-items:center; gap:6px;
+              background:#fff; border:3px solid var(--col); border-radius:18px; padding:12px 8px;
+              box-shadow:0 6px 0 rgba(0,0,0,.06), 0 8px 18px rgba(70,90,140,.16);
+              animation:cellIn .42s cubic-bezier(.2,1.3,.4,1) backwards; }
+  .aname { font:600 14px/1 var(--display); }
+  .ahand { font-size:58px; line-height:1; filter:drop-shadow(0 3px 4px rgba(0,0,0,.18)); }
+  .afighter.pick .ahand { animation:ready 1.5s ease-in-out infinite; }
+  .afighter.revealed .ahand { animation:handShake .55s ease backwards; }
+  .admg { min-height:20px; font:800 17px/1 var(--display); color:var(--berry); opacity:0; }
+  .admg.show { animation:dmgPop .9s ease forwards; }
+  .ahp { position:relative; width:100%; height:17px; background:#eee6f0; border-radius:9px; overflow:hidden; border:2px solid #fff; }
+  .ahp i { position:absolute; left:0; top:0; bottom:0; width:var(--from); background:var(--col); opacity:.85; animation:drain .55s ease forwards; }
+  .ahp b { position:relative; font-size:10px; line-height:13px; color:#fff; padding-left:6px; text-shadow:0 1px 2px rgba(0,0,0,.45); }
+  .afighter.hurt { animation:cellIn .42s backwards, recoil .55s .32s ease; }
+  .afighter.ko { opacity:.5; filter:grayscale(.7); }
+  @keyframes cellIn { from{opacity:0; transform:translateY(-16px) scale(.8);} to{opacity:1; transform:none;} }
+  @keyframes ready { 0%,100%{transform:translateY(0) rotate(-5deg);} 50%{transform:translateY(-7px) rotate(5deg);} }
+  @keyframes handShake { 0%{transform:scale(.5) rotate(0);} 35%{transform:scale(1.25) rotate(-15deg);} 55%{transform:scale(1) rotate(11deg);} 78%{transform:rotate(-5deg);} 100%{transform:rotate(0);} }
+  @keyframes recoil { 0%{transform:translateX(0);} 20%{transform:translateX(-9px) rotate(-3deg);} 45%{transform:translateX(8px) rotate(2deg);} 70%{transform:translateX(-4px);} 100%{transform:translateX(0);} }
+  @keyframes dmgPop { 0%{opacity:0; transform:translateY(6px) scale(.6);} 25%{opacity:1; transform:translateY(-4px) scale(1.15);} 80%{opacity:1; transform:translateY(-6px);} 100%{opacity:0; transform:translateY(-16px);} }
+  @keyframes drain { from{width:var(--from);} to{width:var(--to);} }
   .standings { display:flex; flex-direction:column; gap:6px; margin:14px 0; font:600 16px/1.3 var(--display); }
   .winner { font:600 28px/1.2 var(--display); margin:10px 0 16px; }
   .reveal-stats { display:flex; justify-content:space-between; gap:10px; margin:10px 0 14px; font-size:14px; font-weight:800; }

@@ -126,20 +126,19 @@ export function cardEffect(card, x, y) {
 
 // Battle effects on a melee reveal: hits, eliminations, and victory confetti.
 export function battleVfx(reveal, winnerIdx) {
-  document.querySelectorAll(".rcell[data-seat]").forEach((cell) => {
+  document.querySelectorAll(".afighter[data-seat]").forEach((cell) => {
     const seat = Number(cell.dataset.seat);
     const d = reveal.dmg ? reveal.dmg[seat] || 0 : 0;
     const r = cell.getBoundingClientRect();
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     if (d > 0) {
-      burst(cx, cy, { count: 11, colors: ["#ff7a59", "#f6c544", "#e06a6a"], spread: 72, size: 8 });
+      burst(cx, cy, { count: 13, colors: ["#ff7a59", "#f6c544", "#e06a6a"], spread: 90, size: 9 });
       flash(cx, cy, `-${d}`, "#e06a6a");
-      shake(cell);
     }
   });
   (reveal.elim || []).forEach((seat) => {
-    const cell = document.querySelector(`.rcell[data-seat="${seat}"]`);
-    if (cell) { const r = cell.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, { count: 16, emoji: "💥", spread: 100 }); }
+    const cell = document.querySelector(`.afighter[data-seat="${seat}"]`);
+    if (cell) { const r = cell.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, { count: 18, emoji: "💥", spread: 110 }); }
   });
   if (reveal.final && winnerIdx >= 0) confetti();
 }

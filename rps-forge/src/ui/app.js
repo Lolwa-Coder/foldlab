@@ -10,7 +10,7 @@ import {
   activeSeat, snapshotFor, forfeit,
 } from "../game/state.js?b=3";
 import { host as netHost, join as netJoin } from "../net/net.js?b=3";
-import { spreadView, hud, meleeView } from "./render.js?b=3";
+import { spreadView, hud, meleeView, meleeStage } from "./render.js?b=3";
 import * as vfx from "./vfx.js?b=4";
 import { loadCount, bumpCount } from "./counter.js?b=4";
 
@@ -167,7 +167,7 @@ function render() {
     if (role === "host") { g.viewer = mySeat; g.controllable = activeSeat(g) === mySeat; g.canAdvance = true; }
     else if (role === "local") { const vs = activeSeat(g); g.viewer = vs === -1 ? g.current : vs; g.controllable = true; g.canAdvance = true; }
     if (g.phase === "melee") {
-      tableEl.innerHTML = `<div class="duel-banner">🏰 To the melee! 🏰<br><span>Read your rivals. Last one standing wins.</span></div>`;
+      tableEl.innerHTML = meleeStage(g);
       hudEl.innerHTML = meleeView(g);
       // announce blessings/curses to every player, once per game
       if (!meleeAnnounced) {

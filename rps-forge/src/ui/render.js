@@ -97,23 +97,61 @@ export function hud(g) {
 
 // ---- Melee ------------------------------------------------------------------
 
+// The big arena (rendered in #table): one podium per fighter with a large hand
+// that snaps from a ready fist to its thrown gesture on reveal, recoils when hit,
+// drains its HP bar, and fades on KO. This is the "fighting animation".
+export function meleeStage(g) {
+  const m = g.melee;
+  const P = g.players;
+  const idxs = P.map((_, i) => i).filter((i) => !P[i].left);
+
+  let head;
+  if (m.reveal && m.reveal.final) head = m.winnerIdx === -1 ? "🤝 A draw!" : `🏆 ${P[m.winnerIdx].name} is the champion!`;
+  else if (m.reveal) head = `⚔️ Round ${m.reveal.round} — clash!`;
+  else head = `⚔️ Round ${m.round} · ${m.order.length} fighters left`;
+
+  const fighters = idxs.map((i, k) => fighterCard(g, i, k)).join("");
+  return `<div class="arena"><div class="arena-head">${head}</div><div class="arena-fighters">${fighters}</div></div>`;
+}
+
+function fighterCard(g, i, k) {
+  const m = g.melee;
+  const p = g.players[i];
+  const col = PLAYER_COLOR[i];
+  const ko = !p.alive;
+  const dmg = m.reveal && m.reveal.dmg ? m.reveal.dmg[i] || 0 : 0;
+  let hand;
+  if (m.reveal) hand = m.reveal.throws[i] ? HAND_EMOJI[m.reveal.throws[i]] : ko ? "💀" : "✊";
+  else hand = ko ? "💀" : "✊";
+  const hp = p.stat.hp;
+  const oldHp = hp + dmg;
+  const pct = (h) => Math.max(0, Math.min(100, (h / 40) * 100));
+  const badge = (p.blessedHand != null ? " 💎" : "") + (p.cursedHand != null ? " ☠" : "");
+  const cls = ["afighter", m.reveal ? "revealed" : "pick", dmg > 0 ? "hurt" : "", ko ? "ko" : ""].join(" ");
+  return `
+    <div class="${cls}" data-seat="${i}" style="--col:${col}">
+      <div class="aname" style="color:${col}">${p.name}${badge}</div>
+      <div class="ahand" style="animation-delay:${k * 80}ms">${hand}</div>
+      <div class="admg ${dmg ? "show" : ""}">${dmg ? `−${dmg}` : ""}</div>
+      <div class="ahp"><i style="--from:${pct(oldHp)}%; --to:${pct(hp)}%; animation-delay:${k * 80 + 120}ms"></i><b>❤ ${hp}</b></div>
+    </div>`;
+}
+
+// The HUD column: controls (throw buttons / next / new game), score and log.
 export function meleeView(g) {
   const m = g.melee;
   const P = g.players;
   const viewer = viewerOf(g);
 
   if (m.reveal && m.reveal.final) {
-    const c = m.winnerIdx === -1 ? "#aaa" : PLAYER_COLOR[m.winnerIdx];
-    const name = m.winnerIdx === -1 ? "Nobody — a draw" : P[m.winnerIdx].name;
     const standings = [...P.keys()]
+      .filter((i) => !P[i].left)
       .sort((a, b) => P[b].stat.hp - P[a].stat.hp)
       .map((i) => `<div style="color:${PLAYER_COLOR[i]}">${P[i].alive ? "🏆" : "💀"} ${P[i].name} — ❤ ${P[i].stat.hp}</div>`)
       .join("");
     return `
       <div class="melee">
-        <h2>⚔️ Melee over</h2>
-        <div class="winner" style="color:${c}">🏆 ${name}${m.winnerIdx === -1 ? "" : " wins!"}</div>
-        ${revealGrid(g)}
+        <h2>🏁 Melee over</h2>
         <div class="standings">${standings}</div>
         <div class="actions">${canAdvance(g) ? `<button data-act="new" class="big">＋ New game</button>` : `<p class="hint">Waiting for the host…</p>`}</div>
       </div>`;
@@ -122,10 +160,9 @@ export function meleeView(g) {
   if (m.reveal) {
     return `
       <div class="melee">
-        <h2>⚔️ Round ${m.reveal.round} — reveal</h2>
-        ${revealGrid(g)}
-        ${m.reveal.elim.length ? `<div class="elim">Eliminated: ${m.reveal.elim.map((i) => P[i].name).join(", ")} 💀</div>` : ""}
-        <div class="actions">${canAdvance(g) ? `<button data-act="meleenext" class="big">Next round ▸</button>` : `<p class="hint">⏳ Waiting for the host to continue…</p>`}</div>
+        <h2>Round ${m.reveal.round}</h2>
+        ${m.reveal.elim.length ? `<div class="elim">💀 ${m.reveal.elim.map((i) => P[i].name).join(", ")} eliminated!</div>` : `<p class="muted small">Blows traded — watch the arena.</p>`}
+        <div class="actions">${canAdvance(g) ? `<button data-act="meleenext" class="big">Next round ▸</button>` : `<p class="hint">⏳ Waiting for the host…</p>`}</div>
       </div>`;
   }
 
@@ -138,32 +175,13 @@ export function meleeView(g) {
         <button class="throw" data-throw="paper">✋<small>Paper ${me.stat.paper}</small></button>
         <button class="throw" data-throw="scissors">✌<small>Scissors ${me.stat.scissors}</small></button>
       </div>
-      <p class="muted small">Your throw is compared against every other fighter. You lose HP to each who beats it.</p>`
+      <p class="muted small">Your throw is compared against every fighter. You lose HP to each who beats it.</p>`
     : `<p class="hint">⏳ ${me.name} is choosing a throw…</p>`;
   return `
     <div class="melee">
-      <h2>⚔️ Round ${m.round} · ${m.order.length} fighters</h2>
+      <h2>Round ${m.round}</h2>
       <div class="pick-prompt"><b style="color:${PLAYER_COLOR[m.picker]}">${me.name}</b>, choose your throw.
         ${youThrow ? `<span class="muted">others, look away 🙈</span>` : ""}</div>
       ${body}
-      <div class="roster">${g.players.map((p, i) => statCard(p, PLAYER_COLOR[i], { masked: i !== viewer, hp: true })).join("")}</div>
     </div>`;
-}
-
-function revealGrid(g) {
-  const m = g.melee;
-  const P = g.players;
-  const cells = m.order
-    .map((i) => {
-      const hand = m.reveal.throws[i];
-      const d = m.reveal.dmg[i];
-      return `<div class="rcell" data-seat="${i}" style="border-color:${PLAYER_COLOR[i]}">
-        <div style="color:${PLAYER_COLOR[i]}">${P[i].name}</div>
-        <div class="rhand">${HAND_EMOJI[hand]}</div>
-        <div class="rdmg ${d ? "took" : ""}">${d ? `−${d} HP` : "unscathed"}</div>
-        <div class="rhp">❤ ${P[i].stat.hp}</div>
-      </div>`;
-    })
-    .join("");
-  return `<div class="reveal-grid">${cells}</div>`;
 }
