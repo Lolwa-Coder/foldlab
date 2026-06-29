@@ -1,5 +1,8 @@
 # RPS-Forge
 
+**▶ Play live: https://lolwa-coder.github.io/foldlab/rps-forge/**
+(A global games-played counter is shown in the header, via a free no-auth service.)
+
 A turn-based **character-forge battler**. Spend ~10 resource turns growing three
 stat pools — **Rock / Paper / Scissors** — then duel another forged fighter. The
 RPS stats *are* the combat moves, so how you build is how you fight.
