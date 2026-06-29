@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>RPS-Forge — card-pool tuning</title>
+<style>
+  body { background:#0c0a14; color:#d8d2e8; font:14px/1.5 ui-monospace,Menlo,Consolas,monospace; margin:0; padding:24px; }
+  h1 { font-size:16px; color:#b06cf0; }
+  pre { white-space:pre; }
+  .ok { color:#3fb950; }
+</style>
+<h1>✦ RPS-Forge — card-pool tuning ✦</h1>
+<p class="ok" id="status">running…</p>
+<pre id="out"></pre>
+<script type="module">
+  import { runTune } from "./sim/tune-core.js";
+  const out = document.getElementById("out");
+  const status = document.getElementById("status");
+  const lines = [];
+  const log = (s = "") => { lines.push(s); out.textContent = lines.join("\n"); };
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  (async () => {
+    const t0 = performance.now();
+    // chunk so the page stays responsive
+    await tick();
+    runTune(log, 3000);
+    status.textContent = `done in ${((performance.now() - t0) / 1000).toFixed(1)}s`;
+  })();
+</script>

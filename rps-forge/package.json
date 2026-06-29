@@ -1,0 +1,11 @@
+{
+  "name": "rps-forge",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Turn-based RPS character-forge battler. Build Rock/Paper/Scissors stats, then fight. Open-web, P2P, no server, no logins, no billing.",
+  "scripts": {
+    "balance": "node sim/balance.js",
+    "protocol": "node sim/protocol-demo.js"
+  }
+}

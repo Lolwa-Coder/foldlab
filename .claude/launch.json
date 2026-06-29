@@ -12,6 +12,30 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "5050", "--directory", "meccha-chameleon"],
       "port": 5050
+    },
+    {
+      "name": "wingflock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "wingspan-clone"],
+      "port": 8080
+    },
+    {
+      "name": "my-reviews",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5500", "--directory", "My_reviews/dist"],
+      "port": 5500
+    },
+    {
+      "name": "gifmatch",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5600", "--directory", "gifmatch/web"],
+      "port": 5600
+    },
+    {
+      "name": "rps-forge",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["rps-forge/serve.py", "5700"],
+      "port": 5700
     }
   ]
 }

@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>RPS-Forge — balance sim</title>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font:14px/1.5 ui-monospace,Menlo,Consolas,monospace; margin:0; padding:24px; }
+  h1 { font-size:16px; color:#58a6ff; }
+  pre { white-space:pre; }
+  .ok { color:#3fb950; }
+</style>
+<h1>RPS-Forge — combat balance simulator</h1>
+<p class="ok" id="status">running…</p>
+<pre id="out"></pre>
+<script type="module">
+  import { runForgingTax } from "./sim/balance-core.js";
+  const out = document.getElementById("out");
+  const status = document.getElementById("status");
+  const lines = [];
+  const log = (s = "") => { lines.push(s); out.textContent = lines.join("\n"); };
+  const tick = () => new Promise((r) => setTimeout(r, 0)); // yield to event loop
+  (async () => {
+    const t0 = performance.now();
+    await runForgingTax(log, 700, tick);
+    status.textContent = `done in ${((performance.now() - t0) / 1000).toFixed(1)}s`;
+    console.log(lines.join("\n"));
+  })();
+</script>
